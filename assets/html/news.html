@@ -1,0 +1,1015 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="News">
+  <meta name="description" content="A personal news reader with locally saved RSS feeds and OPML support.">
+  <title>News - Your daily briefing</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f2f2f7;
+      --card: #ffffff;
+      --sheet-bg: #f2f2f7;
+      --sheet-cell: #ffffff;
+      --label: #000000;
+      --secondary: rgba(60, 60, 67, .6);
+      --tertiary: rgba(60, 60, 67, .3);
+      --separator: rgba(60, 60, 67, .2);
+      --fill: rgba(118, 118, 128, .12);
+      --fill-strong: rgba(118, 118, 128, .2);
+      --tint: #007aff;
+      --tint-pressed: #0062cc;
+      --red: #ff3b30;
+      --bar: rgba(249, 249, 249, .82);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 6px 20px rgba(0, 0, 0, .06);
+      --backdrop: rgba(0, 0, 0, .35);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --tabbar-h: 50px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--label);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #000000;
+        --card: #1c1c1e;
+        --sheet-bg: #1c1c1e;
+        --sheet-cell: #2c2c2e;
+        --label: #ffffff;
+        --secondary: rgba(235, 235, 245, .6);
+        --tertiary: rgba(235, 235, 245, .3);
+        --separator: rgba(84, 84, 88, .65);
+        --fill: rgba(118, 118, 128, .24);
+        --fill-strong: rgba(118, 118, 128, .32);
+        --tint: #0a84ff;
+        --tint-pressed: #409cff;
+        --red: #ff453a;
+        --bar: rgba(22, 22, 24, .78);
+        --shadow: none;
+        --backdrop: rgba(0, 0, 0, .55);
+      }
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--bg); color: var(--label); }
+    button, input, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; -webkit-user-select: none; user-select: none; }
+    svg { display: block; }
+    .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    /* Navigation bar */
+    .nav-bar {
+      position: sticky; top: 0; z-index: 5;
+      padding-top: var(--safe-top);
+      background: transparent;
+      transition: background-color .2s ease, box-shadow .2s ease;
+    }
+    .nav-bar.scrolled {
+      background: var(--bar);
+      -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+      box-shadow: 0 .5px 0 var(--separator);
+    }
+    .nav-inner { max-width: 760px; height: 44px; margin: 0 auto; padding: 0 8px; display: grid; grid-template-columns: 88px 1fr 88px; align-items: center; }
+    .nav-title { text-align: center; font-size: 17px; font-weight: 600; letter-spacing: -.41px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateY(4px); transition: opacity .2s ease, transform .2s ease; }
+    .nav-bar.scrolled .nav-title { opacity: 1; transform: none; }
+    .nav-left { display: flex; justify-content: flex-start; }
+    .nav-right { display: flex; justify-content: flex-end; gap: 2px; }
+    .bar-icon { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: transparent; color: var(--tint); border-radius: 22px; }
+    .bar-icon svg { width: 22px; height: 22px; }
+    .bar-icon:active, .bar-button:active { opacity: .4; }
+    .bar-icon.spinning svg { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .bar-button { min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: var(--tint); font-size: 17px; letter-spacing: -.41px; }
+    .bar-button.bold { font-weight: 600; }
+    .bar-button:disabled { color: var(--tertiary); }
+
+    /* Page */
+    .page { max-width: 760px; margin: 0 auto; padding: 0 16px calc(var(--tabbar-h) + var(--safe-bottom) + 32px); }
+    .large-title { padding: 2px 4px 10px; }
+    .eyebrow { color: var(--secondary); font-size: 13px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; }
+    h1 { margin: 2px 0 0; font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: .37px; overflow-wrap: anywhere; }
+
+    .search-row { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
+    .search-field { flex: 1; min-width: 0; height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 10px; background: var(--fill); color: var(--secondary); }
+    .search-field svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    .search-field input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--label); font-size: 17px; letter-spacing: -.41px; }
+    .search-field input::placeholder { color: var(--secondary); }
+    .search-cancel { display: none; border: 0; background: transparent; color: var(--tint); font-size: 17px; padding: 0 2px; }
+    .search-row:focus-within .search-cancel, .search-row.has-query .search-cancel { display: block; }
+
+    .chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 6px; scrollbar-width: none; scroll-snap-type: x proximity; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { flex: 0 0 auto; max-width: 220px; height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: var(--fill); color: var(--label); font-size: 15px; font-weight: 500; letter-spacing: -.24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; scroll-snap-align: start; transition: background-color .15s ease, color .15s ease; }
+    .chip.active { background: var(--label); color: var(--bg); }
+    .chip:active { opacity: .6; }
+
+    .status { min-height: 18px; padding: 8px 4px 4px; color: var(--secondary); font-size: 13px; letter-spacing: -.08px; line-height: 18px; }
+    .status.error { color: var(--red); }
+
+    /* Lead story */
+    .lead-card { margin-top: 10px; border-radius: 16px; overflow: hidden; background: var(--card); box-shadow: var(--shadow); cursor: pointer; transition: transform .15s ease; }
+    .lead-card:active { transform: scale(.98); }
+    .lead-image { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--fill); }
+    .lead-body { padding: 14px 16px 16px; }
+    .lead-body h2 { margin: 8px 0 6px; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: .35px; }
+    .lead-body p { margin: 0; color: var(--secondary); font-size: 15px; line-height: 20px; letter-spacing: -.24px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+    .source-meta { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--secondary); font-size: 13px; font-weight: 600; letter-spacing: -.08px; }
+    .source-meta span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tile { flex: 0 0 auto; display: grid; place-items: center; color: #fff; font-weight: 700; }
+    .tile.small { width: 18px; height: 18px; border-radius: 5px; font-size: 10px; }
+    .tile.row { width: 30px; height: 30px; border-radius: 7px; font-size: 15px; }
+    .time-meta { margin-top: 8px; color: var(--secondary); font-size: 13px; letter-spacing: -.08px; }
+
+    /* Lists */
+    .section-header { display: flex; align-items: baseline; justify-content: space-between; padding: 26px 4px 8px; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: .35px; }
+    .grouped { border-radius: 12px; overflow: hidden; background: var(--card); box-shadow: var(--shadow); }
+    .story-row { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; cursor: pointer; transition: background-color .1s ease; }
+    .story-row + .story-row::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--separator); }
+    .story-row:active { background: var(--fill); }
+    .story-copy { flex: 1; min-width: 0; }
+    .story-copy h3 { margin: 5px 0 0; font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -.41px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .story-copy .time-meta { margin-top: 6px; }
+    .story-thumb { flex: 0 0 auto; width: 88px; height: 88px; border-radius: 10px; object-fit: cover; background: var(--fill); }
+    @media (min-width: 640px) {
+      .story-thumb { width: 120px; height: 90px; }
+      .story-copy p { margin: 4px 0 0; color: var(--secondary); font-size: 15px; line-height: 20px; letter-spacing: -.24px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    }
+    @media (max-width: 639px) { .story-copy p { display: none; } }
+
+    .lead-card:focus-visible, .story-row:focus-visible, .chip:focus-visible, button:focus-visible, .list-row:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+
+    /* Empty state */
+    .empty { margin-top: 48px; padding: 0 24px; text-align: center; color: var(--secondary); font-size: 15px; line-height: 20px; }
+    .empty svg { width: 56px; height: 56px; margin: 0 auto 14px; color: var(--tertiary); }
+    .empty strong { display: block; margin-bottom: 6px; color: var(--label); font-size: 20px; line-height: 25px; font-weight: 600; }
+    .filled-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 18px; padding: 0 20px; border: 0; border-radius: 12px; background: var(--tint); color: #fff; font-size: 17px; font-weight: 600; letter-spacing: -.41px; }
+    .filled-button:active { background: var(--tint-pressed); }
+
+    /* Tab bar */
+    .tab-bar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+      padding-bottom: var(--safe-bottom);
+      background: var(--bar);
+      -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+      box-shadow: 0 -.5px 0 var(--separator);
+    }
+    .tab-inner { max-width: 520px; height: var(--tabbar-h); margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); }
+    .tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: transparent; color: #999; font-size: 10px; font-weight: 500; letter-spacing: .1px; }
+    .tab svg { width: 26px; height: 26px; }
+    .tab.active { color: var(--tint); }
+
+    /* Sheets */
+    dialog.sheet {
+      position: fixed; inset: auto 0 0 0; z-index: 20;
+      width: 100%; max-width: 100%; max-height: calc(100dvh - var(--safe-top) - 24px);
+      margin: 0; padding: 0; border: 0;
+      border-radius: 14px 14px 0 0; overflow: auto; overscroll-behavior: contain;
+      background: var(--sheet-bg); color: var(--label);
+      box-shadow: 0 -4px 30px rgba(0, 0, 0, .15);
+    }
+    dialog.sheet.tall { height: calc(100dvh - var(--safe-top) - 12px); }
+    dialog.sheet::backdrop { background: var(--backdrop); }
+    dialog.sheet[open] { animation: sheet-up .38s cubic-bezier(.32, .72, 0, 1); }
+    dialog.sheet[open]::backdrop { animation: fade-in .3s ease; }
+    @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @media (min-width: 700px) {
+      dialog.sheet { inset: 0; margin: auto; width: min(540px, calc(100% - 48px)); max-height: min(86vh, 720px); border-radius: 14px; }
+      dialog.sheet.tall { width: min(720px, calc(100% - 48px)); height: min(90vh, 960px); max-height: none; }
+      dialog.sheet[open] { animation: sheet-pop .3s cubic-bezier(.32, .72, 0, 1); }
+      @keyframes sheet-pop { from { opacity: 0; transform: translateY(24px) scale(.98); } to { opacity: 1; transform: none; } }
+      .grabber { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      dialog.sheet[open], dialog.sheet[open]::backdrop { animation: none; }
+    }
+    .grabber { width: 36px; height: 5px; margin: 6px auto 0; border-radius: 3px; background: var(--tertiary); }
+    .sheet-header {
+      position: sticky; top: 0; z-index: 2;
+      display: grid; grid-template-columns: minmax(80px, 1fr) auto minmax(80px, 1fr); align-items: center;
+      min-height: 52px; padding: 0 8px;
+      background: color-mix(in srgb, var(--sheet-bg) 85%, transparent);
+      -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    }
+    .sheet-header.bordered { box-shadow: 0 .5px 0 var(--separator); }
+    .sheet-header h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.41px; text-align: center; }
+    .sheet-header > :first-child { justify-self: start; }
+    .sheet-header > :last-child { justify-self: end; }
+    .close-circle { width: 30px; height: 30px; margin-right: 8px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--fill); color: var(--secondary); }
+    .close-circle svg { width: 14px; height: 14px; }
+    .sheet-body { padding: 8px 16px calc(28px + var(--safe-bottom)); }
+    .group-header { padding: 16px 16px 6px; color: var(--secondary); font-size: 13px; letter-spacing: -.08px; text-transform: uppercase; }
+    .group-footer { padding: 7px 16px 0; color: var(--secondary); font-size: 13px; line-height: 18px; letter-spacing: -.08px; }
+    .group-footer.error { color: var(--red); }
+    .inset-group { border-radius: 10px; overflow: hidden; background: var(--sheet-cell); }
+    .inset-group + .group-header, .inset-group + .inset-group { margin-top: 0; }
+    .inset-group + .inset-group { margin-top: 28px; }
+
+    .list-row {
+      position: relative; width: 100%; min-height: 44px; display: flex; align-items: center; gap: 12px;
+      padding: 7px 16px; border: 0; background: transparent; text-align: left; font-size: 17px; letter-spacing: -.41px; cursor: pointer;
+    }
+    .list-row + .list-row::before { content: ""; position: absolute; top: 0; right: 0; left: 16px; height: .5px; background: var(--separator); }
+    .list-row.with-icon + .list-row::before, .list-row + .list-row.with-icon::before { left: 58px; }
+    .list-row:active { background: var(--fill-strong); }
+    .row-text { flex: 1; min-width: 0; }
+    .row-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-subtitle { display: block; margin-top: 1px; color: var(--secondary); font-size: 13px; letter-spacing: -.08px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-check { flex: 0 0 auto; width: 20px; height: 20px; color: var(--tint); }
+    .row-check svg { width: 20px; height: 20px; }
+    .row-chevron { flex: 0 0 auto; width: 14px; height: 14px; color: var(--tertiary); }
+    .action-row { color: var(--tint); }
+    .remove-dot { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--red); }
+    .remove-dot::after { content: ""; width: 11px; height: 2px; border-radius: 1px; background: #fff; }
+    .sources-list:not(.editing) .remove-dot { display: none; }
+    .sources-list.editing .row-check { display: none; }
+    .sources-list.editing .list-row { cursor: default; }
+    .sources-list.editing .list-row:active { background: transparent; }
+
+    .field-row { position: relative; display: flex; align-items: center; min-height: 44px; padding: 0 16px; }
+    .field-row + .field-row::before { content: ""; position: absolute; top: 0; right: 0; left: 16px; height: .5px; background: var(--separator); }
+    .field-row label { flex: 0 0 64px; font-size: 17px; letter-spacing: -.41px; }
+    .field-row input { flex: 1; min-width: 0; height: 44px; border: 0; outline: 0; background: transparent; font-size: 17px; letter-spacing: -.41px; }
+    .field-row input::placeholder, .opml-textarea::placeholder { color: var(--tertiary); }
+    .opml-textarea { display: block; width: 100%; min-height: 200px; padding: 12px 16px; border: 0; outline: 0; resize: vertical; background: transparent; font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
+
+    /* Article reader */
+    .article-body { padding: 4px 20px calc(40px + var(--safe-bottom)); }
+    .article-body .source-meta { font-size: 15px; }
+    .article-body .tile.small { width: 22px; height: 22px; border-radius: 6px; font-size: 12px; }
+    .article-title { margin: 10px 0 6px; font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: .36px; }
+    .article-main-image { display: block; width: 100%; max-height: 420px; margin: 18px 0 4px; object-fit: cover; border-radius: 12px; background: var(--fill); }
+    .article-fulltext { margin-top: 18px; font-family: ui-serif, "New York", Georgia, "Times New Roman", serif; font-size: 19px; line-height: 1.55; }
+    .article-fulltext p { margin: 0 0 1em; }
+    .article-fulltext p:last-child { margin-bottom: 0; }
+    .loading { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 0; color: var(--secondary); font-size: 15px; }
+    .activity { width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid var(--fill-strong); border-top-color: var(--secondary); animation: spin .9s linear infinite; }
+    .article-message { margin-top: 18px; color: var(--secondary); font-size: 15px; line-height: 20px; }
+    .original-link { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 50px; margin-top: 28px; border-radius: 12px; background: var(--fill); color: var(--tint); font-size: 17px; font-weight: 600; letter-spacing: -.41px; text-decoration: none; }
+    .original-link:active { opacity: .6; }
+    .original-link svg { width: 16px; height: 16px; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .lead-card, .story-row { animation: rise-in .35s ease both; }
+      @keyframes rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav-bar" id="nav-bar">
+    <div class="nav-inner">
+      <div class="nav-left">
+        <button class="bar-icon" id="refresh-button" type="button" title="Refresh feeds" aria-label="Refresh feeds" data-icon="refresh"></button>
+      </div>
+      <div class="nav-title" id="nav-title" aria-hidden="true">For you</div>
+      <div class="nav-right">
+        <button class="bar-icon" id="add-button" type="button" title="Add a feed" aria-label="Add a feed" data-icon="plus"></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="large-title" id="large-title">
+      <div class="eyebrow" id="date-label"></div>
+      <h1 id="page-title">For you</h1>
+    </div>
+    <div class="search-row" id="search-row">
+      <label class="search-field">
+        <span data-icon="search" aria-hidden="true"></span>
+        <input id="search-input" type="search" placeholder="Search" aria-label="Search articles" autocomplete="off" enterkeyhint="search">
+      </label>
+      <button class="search-cancel" id="search-cancel" type="button">Cancel</button>
+    </div>
+    <nav class="chips" id="chips" aria-label="News sources"></nav>
+    <div class="status" id="status" role="status" aria-live="polite">Loading stories…</div>
+    <section id="articles" aria-label="Latest news"></section>
+  </main>
+
+  <nav class="tab-bar" aria-label="Sections">
+    <div class="tab-inner">
+      <button class="tab active" type="button" data-tab="today"><span data-icon="newspaper" aria-hidden="true"></span>Today</button>
+      <button class="tab" type="button" data-tab="sources"><span data-icon="stack" aria-hidden="true"></span>Sources</button>
+      <button class="tab" type="button" data-tab="search"><span data-icon="search" aria-hidden="true"></span>Search</button>
+    </div>
+  </nav>
+
+  <dialog class="sheet tall" id="article-dialog" aria-label="Full article">
+    <div class="grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <button class="bar-icon" id="share-button" type="button" aria-label="Share article" data-icon="share"></button>
+      <span></span>
+      <button class="bar-button bold" type="button" data-close="article-dialog">Done</button>
+    </div>
+    <div class="article-body" id="article-content"></div>
+  </dialog>
+
+  <dialog class="sheet" id="sources-dialog" aria-labelledby="sources-title">
+    <div class="grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <button class="bar-button" id="edit-sources" type="button">Edit</button>
+      <h2 id="sources-title">Sources</h2>
+      <button class="close-circle" type="button" data-close="sources-dialog" aria-label="Close" data-icon="xmark"></button>
+    </div>
+    <div class="sheet-body">
+      <div class="group-header">Your sources</div>
+      <div class="inset-group sources-list" id="sources-list"></div>
+      <div class="group-footer">Sources are saved in this browser.</div>
+      <div class="group-header">Manage</div>
+      <div class="inset-group">
+        <button class="list-row action-row" id="sheet-add-button" type="button">Add Source…</button>
+        <label class="list-row action-row" tabindex="0">Import OPML File…<input id="opml-file" class="visually-hidden" type="file" tabindex="-1" aria-label="Choose an OPML or XML file"></label>
+        <button class="list-row action-row" id="paste-opml-button" type="button">Paste OPML…</button>
+        <button class="list-row action-row" id="export-button" type="button">Export OPML</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="sheet" id="feed-dialog" aria-labelledby="feed-dialog-title">
+    <form id="feed-form" novalidate>
+      <div class="grabber" aria-hidden="true"></div>
+      <div class="sheet-header">
+        <button class="bar-button" type="button" data-close="feed-dialog">Cancel</button>
+        <h2 id="feed-dialog-title">New Source</h2>
+        <button class="bar-button bold" type="submit">Add</button>
+      </div>
+      <div class="sheet-body">
+        <div class="group-header">RSS or Atom feed</div>
+        <div class="inset-group">
+          <div class="field-row"><label for="feed-name">Name</label><input id="feed-name" name="name" placeholder="Local News" autocomplete="off"></div>
+          <div class="field-row"><label for="feed-url">URL</label><input id="feed-url" name="url" type="url" inputmode="url" placeholder="https://example.com/feed.xml" autocapitalize="off" autocorrect="off" spellcheck="false" required></div>
+        </div>
+        <div class="group-footer" id="feed-error">Feeds are saved in this browser.</div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="sheet" id="opml-text-dialog" aria-labelledby="opml-text-title">
+    <form id="opml-text-form">
+      <div class="grabber" aria-hidden="true"></div>
+      <div class="sheet-header">
+        <button class="bar-button" type="button" data-close="opml-text-dialog">Cancel</button>
+        <h2 id="opml-text-title">Paste OPML</h2>
+        <button class="bar-button bold" type="submit">Import</button>
+      </div>
+      <div class="sheet-body">
+        <div class="group-header">OPML content</div>
+        <div class="inset-group">
+          <textarea class="opml-textarea" id="opml-text-input" aria-label="OPML content" required autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="<?xml version=&quot;1.0&quot;?>&#10;<opml version=&quot;2.0&quot;>…"></textarea>
+        </div>
+        <div class="group-footer" id="opml-text-error">Paste the contents of your OPML export.</div>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    (() => {
+      "use strict";
+      const STORAGE_KEY = "personal-news-feeds-v1";
+      const defaultFeeds = [{ id: "bbc-news", title: "BBC News", url: "https://feeds.bbci.co.uk/news/rss.xml" }];
+      const state = { feeds: loadFeeds(), articles: [], selected: "all", query: "", editing: false };
+      let articleRequestId = 0;
+      let currentArticle = null;
+      const articleFetches = new Map();
+      const $ = selector => document.querySelector(selector);
+      const elements = {
+        navBar: $("#nav-bar"), navTitle: $("#nav-title"), largeTitle: $("#large-title"), chips: $("#chips"),
+        articleArea: $("#articles"), status: $("#status"), title: $("#page-title"), date: $("#date-label"),
+        search: $("#search-input"), searchRow: $("#search-row"), refresh: $("#refresh-button"),
+        articleDialog: $("#article-dialog"), articleContent: $("#article-content"),
+        sourcesDialog: $("#sources-dialog"), sourcesList: $("#sources-list"), editSources: $("#edit-sources"),
+        feedDialog: $("#feed-dialog"), feedForm: $("#feed-form"), feedError: $("#feed-error"), opmlFile: $("#opml-file"),
+        opmlTextDialog: $("#opml-text-dialog"), opmlTextForm: $("#opml-text-form"), opmlTextInput: $("#opml-text-input"), opmlTextError: $("#opml-text-error")
+      };
+
+      const ICONS = {
+        refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>',
+        plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+        search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4.5 4.5"/></svg>',
+        newspaper: '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M5 6.5A1.5 1.5 0 0 1 6.5 5h13A1.5 1.5 0 0 1 21 6.5V21a2 2 0 0 0 2 2H7a2 2 0 0 1-2-2Z"/><path d="M21 10h2v11a2 2 0 0 1-2 2" /><path d="M9 9.5h8M9 13.5h8M9 17.5h5" stroke-linecap="round"/></svg>',
+        stack: '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="6.5" cy="8" r="1.4" fill="currentColor" stroke="none"/><circle cx="6.5" cy="14" r="1.4" fill="currentColor" stroke="none"/><circle cx="6.5" cy="20" r="1.4" fill="currentColor" stroke="none"/><path d="M11 8h12M11 14h12M11 20h12"/></svg>',
+        xmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+        share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16"/></svg>',
+        check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg>',
+        chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>',
+        external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>',
+        empty: '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M5 6.5A1.5 1.5 0 0 1 6.5 5h13A1.5 1.5 0 0 1 21 6.5V21a2 2 0 0 0 2 2H7a2 2 0 0 1-2-2Z"/><path d="M21 10h2v11a2 2 0 0 1-2 2"/><path d="M9 9.5h8M9 13.5h8M9 17.5h5" stroke-linecap="round"/></svg>'
+      };
+      function icon(name) {
+        const holder = document.createElement("span");
+        holder.innerHTML = ICONS[name] || "";
+        const svg = holder.firstElementChild;
+        svg.setAttribute("aria-hidden", "true");
+        return svg;
+      }
+      document.querySelectorAll("[data-icon]").forEach(node => node.prepend(icon(node.dataset.icon)));
+      document.querySelectorAll("span[data-icon]").forEach(node => node.replaceWith(node.firstElementChild));
+
+      elements.date.textContent = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(new Date());
+
+      function loadFeeds() {
+        try {
+          const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          return Array.isArray(stored) && stored.length ? stored.filter(feed => feed && typeof feed.url === "string") : defaultFeeds;
+        } catch { return defaultFeeds; }
+      }
+      function saveFeeds() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.feeds)); } catch { /* Storage unavailable; keep feeds for this visit. */ }
+      }
+      function element(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+      function safeUrl(value) {
+        try { const url = new URL(value); return ["http:", "https:"].includes(url.protocol) ? url.href : ""; }
+        catch { return ""; }
+      }
+      function hostname(value) {
+        try { return new URL(value).hostname.replace(/^www\./, ""); } catch { return ""; }
+      }
+      function faviconUrl(value) {
+        const url = safeUrl(value);
+        return url ? `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(new URL(url).origin)}&sz=128` : "";
+      }
+      function getFeedIcon(title) { return (title || "N").trim().charAt(0).toUpperCase() || "N"; }
+      const TILE_COLORS = ["#ff3b30", "#ff9500", "#34c759", "#00c7be", "#30b0c7", "#007aff", "#5856d6", "#af52de", "#ff2d55", "#a2845e"];
+      function tileColor(title) {
+        let hash = 0;
+        for (const char of String(title || "")) hash = (hash * 31 + char.codePointAt(0)) >>> 0;
+        return TILE_COLORS[hash % TILE_COLORS.length];
+      }
+      function makeTile(title, size) {
+        const tile = element("span", `tile ${size}`, getFeedIcon(title));
+        tile.style.background = tileColor(title);
+        tile.setAttribute("aria-hidden", "true");
+        return tile;
+      }
+
+      function renderNav() {
+        elements.chips.replaceChildren();
+        const chipFor = (id, label) => {
+          const chip = element("button", `chip${state.selected === id ? " active" : ""}`, label);
+          chip.type = "button";
+          chip.setAttribute("aria-pressed", String(state.selected === id));
+          chip.addEventListener("click", () => selectFeed(id));
+          return chip;
+        };
+        elements.chips.append(chipFor("all", "For you"), ...state.feeds.map(feed => chipFor(feed.id, feed.title)));
+        elements.chips.querySelector(".chip.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+
+        elements.sourcesList.replaceChildren();
+        elements.sourcesList.classList.toggle("editing", state.editing);
+        const rowFor = (id, title, subtitle, removable) => {
+          const row = element("div", "list-row with-icon");
+          row.setAttribute("role", "button");
+          row.tabIndex = 0;
+          if (removable) {
+            const remove = element("button", "remove-dot");
+            remove.type = "button";
+            remove.setAttribute("aria-label", `Remove ${title}`);
+            remove.addEventListener("click", event => { event.stopPropagation(); removeFeed(id); });
+            row.append(remove);
+          }
+          row.append(makeTile(title, "row"));
+          const text = element("span", "row-text");
+          text.append(element("span", "row-title", title));
+          if (subtitle) text.append(element("span", "row-subtitle", subtitle));
+          row.append(text);
+          const check = element("span", "row-check");
+          if (state.selected === id) check.append(icon("check"));
+          row.append(check);
+          const choose = () => {
+            if (state.editing) return;
+            selectFeed(id);
+            closeModal(elements.sourcesDialog);
+          };
+          row.addEventListener("click", choose);
+          row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); choose(); } });
+          return row;
+        };
+        elements.sourcesList.append(rowFor("all", "For you", "All sources", false));
+        state.feeds.forEach(feed => elements.sourcesList.append(rowFor(feed.id, feed.title, hostname(feed.url), true)));
+      }
+      function selectFeed(id) {
+        state.selected = id;
+        const feed = state.feeds.find(item => item.id === id);
+        const title = feed ? feed.title : "For you";
+        elements.title.textContent = title;
+        elements.navTitle.textContent = title;
+        renderNav(); renderArticles();
+      }
+      function removeFeed(id) {
+        const feed = state.feeds.find(item => item.id === id);
+        if (!feed || !confirm(`Remove ${feed.title} from your sources?`)) return;
+        state.feeds = state.feeds.filter(item => item.id !== id);
+        saveFeeds();
+        if (state.selected === id) selectFeed("all"); else renderNav();
+        refreshFeeds();
+      }
+      function parseDate(value) {
+        const parsed = new Date(value || "");
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+      function relativeTime(value) {
+        const date = parseDate(value);
+        if (!date) return "";
+        const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+        if (minutes < 1) return "Just now";
+        if (minutes < 60) return `${minutes}m ago`;
+        if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
+        if (minutes < 10080) return `${Math.floor(minutes / 1440)}d ago`;
+        return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+      }
+      function plainText(html) {
+        const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
+        return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+      }
+      function previewText(value, limit = 500) {
+        const text = String(value || "").replace(/\s+/g, " ").trim();
+        return text.length > limit ? `${text.slice(0, limit - 3).trimEnd()}...` : text;
+      }
+      function normalizeItem(item, feed) {
+        const enclosure = item.enclosure && (item.enclosure.thumbnail || item.enclosure.link || item.enclosure.url);
+        const content = item.content || item.description || "";
+        const parsed = new DOMParser().parseFromString(String(content), "text/html");
+        const imageNode = parsed.querySelector("img[src]");
+        const enclosureType = item.enclosure && item.enclosure.type;
+        const enclosureImage = enclosureType && enclosureType.startsWith("image/") ? enclosure : "";
+        const image = safeUrl(item.thumbnail || item.image || enclosureImage || (imageNode && imageNode.getAttribute("src")) || "");
+        const url = safeUrl(item.link || item.url || "");
+        if (!url) return null;
+        return { title: plainText(item.title) || "Untitled story", summary: previewText(plainText(content)), image, fallbackImage: safeUrl(feed.imageUrl), sourceIcon: faviconUrl(feed.url), url, source: feed.title, feedId: feed.id, date: item.pubDate || item.isoDate || item.date || "" };
+      }
+      async function parseDirect(url) {
+        const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error(`Feed returned ${response.status}`);
+        const xml = new DOMParser().parseFromString(await response.text(), "application/xml");
+        if (xml.querySelector("parsererror")) throw new Error("This feed could not be parsed");
+        return [...xml.querySelectorAll("item, entry")].map(item => {
+          const value = tag => item.getElementsByTagName(tag)[0]?.textContent || "";
+          const linkNode = item.querySelector("link[href]");
+          const enclosureNode = item.querySelector("media\\:thumbnail[url], media\\:content[url], thumbnail[url], content[url]");
+          const imageEnclosure = [...item.querySelectorAll("enclosure[url]")].find(node => (node.getAttribute("type") || "").startsWith("image/"));
+          const content = value("content:encoded") || value("description") || value("summary") || value("content");
+          return { title: value("title"), description: content, link: linkNode ? linkNode.getAttribute("href") : value("link"), pubDate: value("pubDate") || value("published") || value("updated"), thumbnail: enclosureNode?.getAttribute("url") || imageEnclosure?.getAttribute("url") || "" };
+        });
+      }
+      async function fetchFeed(feed) {
+        const bridgeUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`;
+        try {
+          const response = await fetch(bridgeUrl, { signal: AbortSignal.timeout(15000) });
+          const data = await response.json();
+          if (!response.ok || data.status !== "ok" || !Array.isArray(data.items)) throw new Error(data.message || "RSS service could not read this feed");
+          return data.items.map(item => normalizeItem(item, feed)).filter(Boolean);
+        } catch (bridgeError) {
+          try { return (await parseDirect(feed.url)).map(item => normalizeItem(item, feed)).filter(Boolean); }
+          catch (directError) { throw new Error(`${feed.title}: ${directError.message || bridgeError.message}`); }
+        }
+      }
+      let refreshing = 0;
+      async function refreshFeeds() {
+        const run = ++refreshing;
+        elements.refresh.classList.add("spinning");
+        elements.status.className = "status";
+        elements.status.textContent = state.feeds.length ? "Updating your sources…" : "Add a source to get started.";
+        try {
+          if (!state.feeds.length) { state.articles = []; renderArticles(); return; }
+          const results = await Promise.allSettled(state.feeds.map(fetchFeed));
+          if (run !== refreshing) return;
+          state.articles = results.flatMap(result => result.status === "fulfilled" ? result.value : []);
+          state.articles.sort((a, b) => (parseDate(b.date)?.getTime() || 0) - (parseDate(a.date)?.getTime() || 0));
+          const failures = results.filter(result => result.status === "rejected").map(result => result.reason.message);
+          elements.status.className = `status${failures.length === state.feeds.length ? " error" : ""}`;
+          elements.status.textContent = failures.length ? `${state.articles.length} stories loaded. ${failures.join(" · ")}` : `${state.articles.length} stories from ${state.feeds.length} ${state.feeds.length === 1 ? "source" : "sources"}`;
+          renderArticles();
+        } finally {
+          if (run === refreshing) elements.refresh.classList.remove("spinning");
+        }
+      }
+      function getVisibleArticles() {
+        return state.articles.filter(article => (state.selected === "all" || article.feedId === state.selected) &&
+          (!state.query || `${article.title} ${article.summary} ${article.source}`.toLowerCase().includes(state.query.toLowerCase())));
+      }
+      function imageFor(article, className) {
+        const image = element("img", className);
+        image.alt = ""; image.loading = "lazy"; image.decoding = "async";
+        const tried = new Set();
+        const fallbackCandidates = [article.fallbackImage, article.sourceIcon, faviconUrl(article.url)].filter(Boolean);
+        let resolving = false;
+        const tryNextImage = async () => {
+          if (resolving) return;
+          resolving = true;
+          try {
+            const fullArticle = await getArticleData(article);
+            const headlineImage = fullArticle.image;
+            if (headlineImage && !tried.has(headlineImage)) {
+              tried.add(headlineImage);
+              image.src = headlineImage;
+              resolving = false;
+              return;
+            }
+          } catch { /* Continue to the source icon when the article cannot be read. */ }
+          const fallback = fallbackCandidates.find(candidate => !tried.has(candidate));
+          if (fallback) {
+            tried.add(fallback);
+            image.src = fallback;
+          } else {
+            image.hidden = true;
+          }
+          resolving = false;
+        };
+        image.addEventListener("error", tryNextImage);
+        const primaryImage = safeUrl(article.image);
+        if (primaryImage) {
+          tried.add(primaryImage);
+          image.src = primaryImage;
+        } else if ("IntersectionObserver" in window) {
+          const observer = new IntersectionObserver(entries => {
+            if (!entries.some(entry => entry.isIntersecting)) return;
+            observer.disconnect();
+            tryNextImage();
+          }, { rootMargin: "240px" });
+          observer.observe(image);
+        } else {
+          tryNextImage();
+        }
+        return image;
+      }
+      function sourceMeta(article) {
+        const meta = element("div", "source-meta");
+        meta.append(makeTile(article.source, "small"), element("span", "", article.source));
+        return meta;
+      }
+      function extractReaderArticle(markdown, expectedTitle) {
+        const source = String(markdown);
+        const section = source.match(/(?:^|\n)Markdown Content:\s*\n([\s\S]*)$/i);
+        let content = section ? section[1] : source;
+        const readerTitle = source.match(/^Title:\s*(.+)$/m)?.[1]?.trim();
+        const articleHeading = readerTitle || expectedTitle;
+        const headingPosition = articleHeading ? content.toLowerCase().indexOf(articleHeading.toLowerCase()) : -1;
+        if (headingPosition >= 0) content = content.slice(headingPosition + articleHeading.length);
+        const imageMatch = content.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)(?:\s+"[^"]*")?\)/i);
+        const image = imageMatch ? safeUrl(imageMatch[1]) : "";
+        if (imageMatch && imageMatch.index < 1600) content = content.slice(imageMatch.index + imageMatch[0].length);
+        const text = content
+          .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+          .replace(/^\s{0,3}(?:#{1,6}\s*|>\s?)/gm, "")
+          .replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, "")
+          .replace(/(\*\*|__)(.*?)\1/g, "$2")
+          .replace(/\*([^*]+)\*/g, "$1")
+          .replace(/_([^_]+)_/g, "$1")
+          .replace(/`{1,3}([^`]+)`{1,3}/g, "$1")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/[ \t]+\n/g, "\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+        const paragraphs = text.split(/\n\s*\n/).map(paragraph => paragraph.replace(/\s*\n\s*/g, " ").replace(/[ \t]{2,}/g, " ").trim()).filter(Boolean);
+        const hasPhotoCredit = /^(?:Getty Images|Reuters|Associated Press|AP(?: Photo)?|AFP|PA Media|EPA|Shutterstock)\.?$/i.test(paragraphs[0] || "");
+        if (hasPhotoCredit) {
+          paragraphs.shift();
+          if (paragraphs[0] && paragraphs[0].length < 180 && !/[.!?]["')\]]?$/.test(paragraphs[0])) paragraphs.shift();
+        }
+        while (paragraphs.length && /^(?:\d+\s+(?:minutes?|hours?)\s+ago|\d+\s+(?:minutes?|hours?)\s+read|By\s+.+)$/i.test(paragraphs[0])) paragraphs.shift();
+        if (!paragraphs.length) throw new Error("The article text was empty.");
+        return { image, paragraphs };
+      }
+      async function fetchArticle(article) {
+        const target = new URL(article.url);
+        const host = target.hostname.toLowerCase();
+        if (!["http:", "https:"].includes(target.protocol) || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) {
+          throw new Error("This article URL cannot be fetched safely.");
+        }
+        const readerUrl = `https://r.jina.ai/http://${target.host}${target.pathname}${target.search}`;
+        const response = await fetch(readerUrl, { signal: AbortSignal.timeout(25000) });
+        if (!response.ok) throw new Error(`Article reader returned ${response.status}.`);
+        return extractReaderArticle(await response.text(), article.title);
+      }
+      function getArticleData(article) {
+        if (!articleFetches.has(article.url)) {
+          articleFetches.set(article.url, fetchArticle(article).catch(error => {
+            articleFetches.delete(article.url);
+            throw error;
+          }));
+        }
+        return articleFetches.get(article.url);
+      }
+
+      function appendArticleHeader(article) {
+        elements.articleContent.append(sourceMeta(article), element("h2", "article-title", article.title));
+        const time = relativeTime(article.date);
+        if (time) elements.articleContent.append(element("div", "time-meta", time));
+      }
+      function appendMainImage(url) {
+        const safeImage = safeUrl(url);
+        if (!safeImage) return;
+        const image = element("img", "article-main-image");
+        image.alt = "";
+        image.src = safeImage;
+        image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+        elements.articleContent.append(image);
+      }
+      function appendArticleText(paragraphs) {
+        const content = element("div", "article-fulltext");
+        paragraphs.forEach(paragraph => content.append(element("p", "", paragraph)));
+        elements.articleContent.append(content);
+      }
+      function appendOriginalLink(article) {
+        const link = element("a", "original-link", "Read Original Story");
+        link.append(icon("external"));
+        link.href = article.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        elements.articleContent.append(link);
+      }
+      async function openArticle(article) {
+        const requestId = ++articleRequestId;
+        currentArticle = article;
+        elements.articleContent.replaceChildren();
+        appendArticleHeader(article);
+        appendMainImage(article.image);
+        const loading = element("div", "loading");
+        loading.append(element("div", "activity"), element("span", "", "Loading article…"));
+        elements.articleContent.append(loading);
+        if (!elements.articleDialog.open) showModal(elements.articleDialog);
+        elements.articleDialog.scrollTop = 0;
+        try {
+          const fullArticle = await getArticleData(article);
+          if (requestId !== articleRequestId || !elements.articleDialog.open) return;
+          elements.articleContent.replaceChildren();
+          appendArticleHeader(article);
+          appendMainImage(fullArticle.image || article.image);
+          appendArticleText(fullArticle.paragraphs);
+          appendOriginalLink(article);
+        } catch (error) {
+          if (requestId !== articleRequestId || !elements.articleDialog.open) return;
+          elements.articleContent.replaceChildren();
+          appendArticleHeader(article);
+          appendMainImage(article.image);
+          if (article.summary) appendArticleText([article.summary]);
+          elements.articleContent.append(element("p", "article-message", error.message || "Full article text could not be retrieved."));
+          appendOriginalLink(article);
+        }
+      }
+      function bindActivate(node, handler) {
+        node.tabIndex = 0;
+        node.setAttribute("role", "button");
+        node.addEventListener("click", handler);
+        node.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handler(); } });
+      }
+      function renderArticles() {
+        const articles = getVisibleArticles();
+        elements.articleArea.replaceChildren();
+        if (!articles.length) {
+          const empty = element("div", "empty");
+          empty.append(icon(state.query ? "search" : "empty"));
+          empty.append(element("strong", "", state.query ? "No Results" : "Your briefing is quiet"));
+          empty.append(element("span", "", state.query ? `No stories match “${state.query}”.` : "Add an RSS source or refresh to see the latest stories."));
+          if (!state.query) {
+            const add = element("button", "filled-button", "Add a Source");
+            add.type = "button"; add.addEventListener("click", openFeedDialog);
+            empty.append(element("br"), add);
+          }
+          elements.articleArea.append(empty);
+          return;
+        }
+        const [lead, ...rest] = articles;
+        const leadCard = element("article", "lead-card");
+        leadCard.append(imageFor(lead, "lead-image"));
+        const leadBody = element("div", "lead-body");
+        leadBody.append(sourceMeta(lead), element("h2", "", lead.title));
+        if (lead.summary) leadBody.append(element("p", "", lead.summary));
+        leadBody.append(element("div", "time-meta", relativeTime(lead.date)));
+        leadCard.append(leadBody);
+        bindActivate(leadCard, () => openArticle(lead));
+        elements.articleArea.append(leadCard);
+        if (rest.length) {
+          elements.articleArea.append(element("div", "section-header", state.selected === "all" ? "More Headlines" : "Latest Stories"));
+          const group = element("div", "grouped");
+          rest.forEach(article => {
+            const row = element("article", "story-row");
+            const copy = element("div", "story-copy");
+            copy.append(sourceMeta(article), element("h3", "", article.title));
+            if (article.summary) copy.append(element("p", "", article.summary));
+            copy.append(element("div", "time-meta", relativeTime(article.date)));
+            row.append(copy, imageFor(article, "story-thumb"));
+            bindActivate(row, () => openArticle(article));
+            group.append(row);
+          });
+          elements.articleArea.append(group);
+        }
+      }
+
+      // Sheets
+      let scrollPosition = 0;
+      let scrollLocked = false;
+      function lockScroll() {
+        if (scrollLocked) return;
+        scrollLocked = true;
+        scrollPosition = window.scrollY;
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${scrollPosition}px`;
+        document.body.style.width = "100%";
+      }
+      function unlockScroll() {
+        if (!scrollLocked || document.querySelector("dialog[open]")) return;
+        scrollLocked = false;
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.width = "";
+        window.scrollTo(0, scrollPosition);
+      }
+      function setTab(name) {
+        document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.tab === name));
+      }
+      function showModal(dialog) {
+        lockScroll();
+        if (!dialog.open) dialog.showModal();
+        if (dialog === elements.sourcesDialog) setTab("sources");
+      }
+      function closeModal(dialog) {
+        if (dialog && dialog.open) dialog.close();
+        unlockScroll();
+      }
+      function openSourcesSheet() {
+        state.editing = false;
+        elements.editSources.textContent = "Edit";
+        elements.editSources.classList.remove("bold");
+        renderNav();
+        showModal(elements.sourcesDialog);
+      }
+      function switchSheet(next) {
+        closeModal(elements.sourcesDialog);
+        next();
+      }
+      function openFeedDialog() {
+        elements.feedForm.reset();
+        elements.feedForm.elements.url.setCustomValidity("");
+        elements.feedError.className = "group-footer";
+        elements.feedError.textContent = "Feeds are saved in this browser.";
+        showModal(elements.feedDialog);
+        elements.feedForm.elements.url.focus();
+      }
+      function openOpmlTextDialog() {
+        elements.opmlTextForm.reset();
+        elements.opmlTextError.className = "group-footer";
+        elements.opmlTextError.textContent = "Paste the contents of your OPML export.";
+        showModal(elements.opmlTextDialog);
+      }
+      function exportOpml() {
+        const escapeXml = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[char]);
+        const outlines = state.feeds.map(feed => `    <outline text="${escapeXml(feed.title)}" title="${escapeXml(feed.title)}" type="rss" xmlUrl="${escapeXml(feed.url)}"${feed.imageUrl ? ` feeder:imageUrl="${escapeXml(feed.imageUrl)}"` : ""}/>`).join("\n");
+        const opml = `<?xml version="1.0" encoding="UTF-8"?>\n<opml version="2.0" xmlns:feeder="https://nononsenseapps.com/feeder"><head><title>My News Feeds</title></head><body>\n${outlines}\n</body></opml>`;
+        const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([opml], { type: "text/x-opml" })); link.download = "my-news-feeds.opml"; link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }
+      async function importOpmlText(text) {
+        try {
+          const xml = new DOMParser().parseFromString(text, "application/xml");
+          if (xml.querySelector("parsererror") || xml.documentElement.tagName.toLowerCase() !== "opml") throw new Error("Choose a valid OPML file.");
+          const imported = [...xml.querySelectorAll("outline[xmlUrl], outline[xmlurl]")].map(node => {
+            const url = safeUrl(node.getAttribute("xmlUrl") || node.getAttribute("xmlurl"));
+            const imageUrl = safeUrl(node.getAttribute("feeder:imageUrl") || node.getAttributeNS("https://nononsenseapps.com/feeder", "imageUrl") || "") || faviconUrl(url);
+            return url ? { id: crypto.randomUUID(), title: node.getAttribute("title") || node.getAttribute("text") || new URL(url).hostname, url, imageUrl } : null;
+          }).filter(Boolean);
+          const existing = new Set(state.feeds.map(feed => feed.url));
+          const unique = imported.filter(feed => !existing.has(feed.url));
+          state.feeds.push(...unique); saveFeeds(); renderNav();
+          elements.status.className = "status";
+          elements.status.textContent = `Imported ${unique.length} ${unique.length === 1 ? "feed" : "feeds"}.`;
+          refreshFeeds();
+          return { ok: true };
+        } catch (error) {
+          const message = error.message || "Could not import that file.";
+          elements.status.className = "status error"; elements.status.textContent = message;
+          return { ok: false, message };
+        }
+      }
+      async function importOpml(file) {
+        if (!file) return;
+        try { await importOpmlText(await file.text()); }
+        catch (error) {
+          elements.status.className = "status error";
+          elements.status.textContent = error.message || "Could not read that file.";
+        } finally { elements.opmlFile.value = ""; }
+      }
+
+      // Events
+      elements.refresh.addEventListener("click", refreshFeeds);
+      $("#add-button").addEventListener("click", openFeedDialog);
+      $("#sheet-add-button").addEventListener("click", () => switchSheet(openFeedDialog));
+      $("#paste-opml-button").addEventListener("click", () => switchSheet(openOpmlTextDialog));
+      $("#export-button").addEventListener("click", exportOpml);
+      elements.opmlFile.closest("label").addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); elements.opmlFile.click(); } });
+      elements.opmlFile.addEventListener("change", event => {
+        const file = event.target.files[0];
+        if (file) closeModal(elements.sourcesDialog);
+        importOpml(file);
+      });
+      elements.editSources.addEventListener("click", () => {
+        state.editing = !state.editing;
+        elements.editSources.textContent = state.editing ? "Done" : "Edit";
+        elements.editSources.classList.toggle("bold", state.editing);
+        renderNav();
+      });
+      $("#share-button").addEventListener("click", async () => {
+        if (!currentArticle) return;
+        if (navigator.share) {
+          try { await navigator.share({ title: currentArticle.title, url: currentArticle.url }); } catch { /* Share cancelled. */ }
+        } else {
+          window.open(currentArticle.url, "_blank", "noopener,noreferrer");
+        }
+      });
+
+      document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+        const name = tab.dataset.tab;
+        document.querySelectorAll("dialog[open]").forEach(dialog => closeModal(dialog));
+        if (name === "sources") { openSourcesSheet(); return; }
+        setTab(name);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (name === "search") elements.search.focus({ preventScroll: true });
+      }));
+
+      const updateSearchState = () => elements.searchRow.classList.toggle("has-query", Boolean(elements.search.value));
+      elements.search.addEventListener("input", event => { state.query = event.target.value.trim(); updateSearchState(); renderArticles(); });
+      elements.search.addEventListener("focus", () => setTab("search"));
+      elements.search.addEventListener("blur", () => { if (!document.querySelector("dialog[open]")) setTab("today"); });
+      const cancelSearch = $("#search-cancel");
+      cancelSearch.addEventListener("pointerdown", event => event.preventDefault());
+      cancelSearch.addEventListener("click", () => {
+        elements.search.value = ""; state.query = ""; updateSearchState(); renderArticles();
+        elements.search.blur(); setTab("today");
+      });
+
+      elements.feedForm.elements.url.addEventListener("input", () => {
+        elements.feedForm.elements.url.setCustomValidity("");
+        elements.feedError.className = "group-footer";
+        elements.feedError.textContent = "Feeds are saved in this browser.";
+      });
+      elements.feedForm.addEventListener("submit", event => {
+        event.preventDefault();
+        const urlInput = elements.feedForm.elements.url;
+        const fail = message => {
+          urlInput.setCustomValidity(message);
+          elements.feedError.className = "group-footer error";
+          elements.feedError.textContent = message;
+          urlInput.focus();
+        };
+        const url = safeUrl(urlInput.value.trim());
+        if (!url) return fail("Enter a valid http or https URL.");
+        if (state.feeds.some(feed => feed.url === url)) return fail("This feed is already in your sources.");
+        urlInput.setCustomValidity("");
+        const title = elements.feedForm.elements.name.value.trim() || new URL(url).hostname;
+        state.feeds.push({ id: crypto.randomUUID(), title, url }); saveFeeds();
+        closeModal(elements.feedDialog);
+        selectFeed(state.feeds[state.feeds.length - 1].id); refreshFeeds();
+      });
+      elements.opmlTextForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const result = await importOpmlText(elements.opmlTextInput.value);
+        if (result.ok) { closeModal(elements.opmlTextDialog); return; }
+        elements.opmlTextError.className = "group-footer error";
+        elements.opmlTextError.textContent = result.message;
+      });
+
+      document.querySelectorAll("[data-close]").forEach(button => button.addEventListener("click", () => closeModal(document.getElementById(button.dataset.close))));
+      document.querySelectorAll("dialog.sheet").forEach(dialog => {
+        dialog.addEventListener("click", event => {
+          if (event.target !== dialog) return;
+          const rect = dialog.getBoundingClientRect();
+          const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+          if (!inside) closeModal(dialog);
+        });
+        dialog.addEventListener("close", () => {
+          unlockScroll();
+          if (!document.querySelector("dialog[open]")) setTab(document.activeElement === elements.search ? "search" : "today");
+        });
+        const header = dialog.querySelector(".sheet-header");
+        dialog.addEventListener("scroll", () => header.classList.toggle("bordered", dialog.scrollTop > 4), { passive: true });
+      });
+
+      const onScroll = () => {
+        if (scrollLocked) return;
+        const threshold = elements.largeTitle.offsetTop + elements.largeTitle.offsetHeight - 44;
+        elements.navBar.classList.toggle("scrolled", window.scrollY > Math.max(8, threshold));
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+
+      renderNav(); onScroll(); refreshFeeds();
+    })();
+  </script>
+</body>
+</html>

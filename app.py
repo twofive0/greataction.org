@@ -42,5 +42,10 @@ def index():
     return send_from_directory('assets', 'html/index.html')
 
 
+@app.route("/news", methods=["GET"])
+def news():
+    return send_from_directory('assets', 'html/news.html')
+
+
 if __name__ == "__main__":
     app.run()
